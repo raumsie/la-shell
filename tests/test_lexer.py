@@ -162,6 +162,21 @@ class TestIdentifierAndFunctionTokens:
     def test_trace_is_function(self):
         assert tokenize("trace")[0].type == TokenType.FUNCTION
 
+    def test_dagger_is_function(self):
+        assert tokenize("dagger")[0].type == TokenType.FUNCTION
+
+    def test_outer_is_function(self):
+        assert tokenize("outer")[0].type == TokenType.FUNCTION
+
+    def test_tensor_is_function(self):
+        assert tokenize("tensor")[0].type == TokenType.FUNCTION
+
+    def test_kron_is_function(self):
+        assert tokenize("kron")[0].type == TokenType.FUNCTION
+
+    def test_commutator_is_function(self):
+        assert tokenize("commutator")[0].type == TokenType.FUNCTION
+
     def test_function_keyword_value_is_name_string(self):
         toks = tokenize("det")
         assert toks[0].value == "det"
@@ -170,8 +185,8 @@ class TestIdentifierAndFunctionTokens:
         toks = tokenize("deter")
         assert toks[0].type == TokenType.IDENTIFIER
 
-    def test_function_keywords_are_exactly_7(self):
-        assert len(FUNCTION_KEYWORDS) == 7
+    def test_function_keywords_are_exactly_12(self):
+        assert len(FUNCTION_KEYWORDS) == 12
 
 
 # ---------------------------------------------------------------------------

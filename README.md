@@ -16,13 +16,13 @@ pip install -r requirements.txt
 python -m src.repl
 ```
 
-If you don't have `git` installed, you can download the ZIP from the GitHub repository and extract it.
+If you don't have `git` installed, you can download the ZIP from the repository and extract it.
 
 ---
 
 ## Requirements
 
-- Python 3.11 or later
+- Python 3.11+
 - NumPy (installed automatically via `requirements.txt`)
 
 The `requirements.txt` file includes:
@@ -52,7 +52,7 @@ python -m src.repl
 You will see the welcome banner:
 
 ```
-LA Shell v1.0 — Linear Algebra Interpreter
+LA Shell v1.1 — Linear Algebra Interpreter
 Type '.help' for commands. Type '.exit' to quit.
 
 la>
@@ -107,12 +107,12 @@ result = inv(A) * B
 
 ### Arithmetic Operators
 
-| Operator | Meaning | Notes |
-|----------|---------|-------|
-| `+` | Matrix addition | Operands must have identical shapes |
-| `-` | Matrix subtraction | Operands must have identical shapes |
-| `*` | Matrix multiplication | Inner dimensions must agree; maps to NumPy `@` |
-| `-` (unary) | Negation | Applied to any expression |
+| Operator | Meaning | Notes                                           |
+|----------|---------|-------------------------------------------------|
+| `+` | Matrix addition | Operands must have identical shapes             |
+| `-` | Matrix subtraction | Operands must have identical shapes             |
+| `*` | Matrix multiplication | Inner dimensions must agree (maps to NumPy `@`) |
+| `-` (unary) | Negation | Applied to any expression                       |
 
 Operator precedence follows standard mathematical convention: `*` binds more tightly than `+` and `-`. Parentheses can override precedence:
 
@@ -132,6 +132,11 @@ A * (B + C)      # A * (B + C)
 | `eye` | `eye(n)` | Returns the n×n identity matrix |
 | `zeros` | `zeros(r, c)` | Returns an r×c matrix of zeros |
 | `ones` | `ones(r, c)` | Returns an r×c matrix of ones |
+| `dagger` | `dagger(A)` | Conjugate transpose of `A` (Hermitian adjoint, `A†`) |
+| `outer` | `outer(u, v)` | Outer product of two vectors `u` and `v` |
+| `tensor` | `tensor(A, B)` | Tensor (Kronecker) product of `A` and `B` |
+| `kron` | `kron(A, B)` | Alias for `tensor(A, B)` |
+| `commutator` | `commutator(A, B)` | `A*B - B*A` for square matrices of the same size |
 
 Function arguments are full expressions, so the following are all valid:
 
@@ -140,7 +145,20 @@ inv(A * B)
 eye(n + 1)
 zeros(2, 4)
 transpose(inv(A))
+tensor(A, B)
+commutator(A, B)
 ```
+
+### Quantum Computing Applications
+
+LA Shell's design was inspired by the linear algebra demands of quantum computing, and several built-ins map directly onto common QC operations:
+
+- **`dagger`** — Computes the Hermitian adjoint (conjugate transpose) of an operator or state. Used constantly in QC to go from a ket `|ψ⟩` to its bra `⟨ψ|`, and to check whether an operator is unitary (`U† * U == I`) or Hermitian (`A† == A`, as required for observables).
+- **`outer`** — Builds rank-1 operators from state vectors, e.g. `outer(v, v)` forms the density matrix / projector `|v⟩⟨v|` for a pure state, and `outer([1,0], [0,1])` forms the raising operator `|0⟩⟨1|`.
+- **`tensor`** / **`kron`** — Combines the state spaces of independent qubits/subsystems via the tensor product, e.g. `tensor([1;0], [0;1])` produces the two-qubit basis state `|01⟩`. `kron` is provided as a drop-in alias since it's the name NumPy and MATLAB users reach for out of habit — it silently performs the same tensor product.
+- **`commutator`** — Computes `[A, B] = AB - BA`, which determines whether two observables can be simultaneously measured (they commute) and appears throughout the Heisenberg uncertainty relations and time-evolution equations.
+
+> **Note:** LA Shell currently only supports real-valued matrix literals (there is no complex-number syntax yet), so `dagger` behaves identically to `transpose` until complex literals are added. The underlying implementation already uses `np.conjugate`, so it will produce correct results the moment complex values are supported.
 
 ---
 

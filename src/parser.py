@@ -160,7 +160,8 @@ class FunctionNode:
     Attributes:
         name: One of the reserved function names:
               ``transpose``, ``det``, ``inv``, ``eye``, ``zeros``, ``ones``,
-              ``trace``.
+              ``trace``, ``dagger``, ``outer``, ``tensor``, ``kron``,
+              ``commutator``.
         args: Ordered list of argument expressions.
 
     Example::

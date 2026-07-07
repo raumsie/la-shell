@@ -18,6 +18,7 @@ Supported token types:
     LPAREN      – '('
     RPAREN      – ')'
     FUNCTION    – one of: transpose det inv eye zeros ones trace
+                  dagger outer tensor kron commutator
     DOT         – '.'  (prefix for shell commands such as .help)
     EOF         – sentinel appended at end of input
 
@@ -61,6 +62,7 @@ class TokenType(Enum):
     LPAREN = auto()      # (
     RPAREN = auto()      # )
     FUNCTION = auto()    # transpose | det | inv | eye | zeros | ones | trace
+                         # | dagger | outer | tensor | kron | commutator
     DOT = auto()         # .
     EOF = auto()         # end-of-input sentinel
 
@@ -77,6 +79,11 @@ FUNCTION_KEYWORDS: frozenset[str] = frozenset({
     'zeros',
     'ones',
     'trace',
+    'dagger',
+    'outer',
+    'tensor',
+    'kron',
+    'commutator',
 })
 
 # ---------------------------------------------------------------------------
@@ -175,7 +182,8 @@ class Lexer:
 
     Identifiers that match one of the reserved function keywords
     (``transpose``, ``det``, ``inv``, ``eye``, ``zeros``, ``ones``,
-    ``trace``) are emitted as FUNCTION tokens rather than IDENTIFIER tokens.
+    ``trace``, ``dagger``, ``outer``, ``tensor``, ``kron``, ``commutator``)
+    are emitted as FUNCTION tokens rather than IDENTIFIER tokens.
 
     A single EOF token is always appended at the end of the token list.
 

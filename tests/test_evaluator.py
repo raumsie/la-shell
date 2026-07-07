@@ -605,6 +605,177 @@ class TestBuiltinOnes:
 
 
 # ---------------------------------------------------------------------------
+# Built-in: dagger (conjugate transpose)
+# ---------------------------------------------------------------------------
+
+class TestBuiltinDagger:
+    def test_dagger_real_matrix_is_transpose(self, ev):
+        result = eval_source("dagger([1, 2; 3, 4])", ev)
+        np.testing.assert_array_almost_equal(
+            result, np.array([[1.0, 3.0], [2.0, 4.0]])
+        )
+
+    def test_dagger_shape_swapped(self, ev, st):
+        st.set("A", np.array([[1.0, 2.0, 3.0]]))
+        result = eval_source("dagger(A)", ev)
+        assert result.shape == (3, 1)
+
+    def test_dagger_conjugates_complex_matrix(self, ev, st):
+        A = np.array([[1 + 2j, 3 - 1j], [0 + 1j, 2 + 0j]])
+        st.set("A", A)
+        result = eval_source("dagger(A)", ev)
+        np.testing.assert_array_almost_equal(result, A.conj().T)
+
+    def test_dagger_twice_returns_original(self, ev, st):
+        A = np.array([[1 + 2j, 3 - 1j], [0 + 1j, 2 + 0j]])
+        st.set("A", A)
+        result = eval_source("dagger(dagger(A))", ev)
+        np.testing.assert_array_almost_equal(result, A)
+
+    def test_dagger_too_many_args_raises_type_error(self, ev, st):
+        st.set("A", np.eye(2))
+        with pytest.raises(TypeError):
+            eval_source("dagger(A, A)", ev)
+
+
+# ---------------------------------------------------------------------------
+# Built-in: outer (outer product)
+# ---------------------------------------------------------------------------
+
+class TestBuiltinOuter:
+    def test_outer_row_vectors(self, ev):
+        result = eval_source("outer([1, 2], [3, 4])", ev)
+        expected = np.outer([1.0, 2.0], [3.0, 4.0])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_outer_shape(self, ev):
+        result = eval_source("outer([1, 2, 3], [4, 5])", ev)
+        assert result.shape == (3, 2)
+
+    def test_outer_column_vectors(self, ev):
+        result = eval_source("outer([1; 2], [3; 4])", ev)
+        expected = np.outer([1.0, 2.0], [3.0, 4.0])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_outer_mixed_row_and_column(self, ev):
+        result = eval_source("outer([1, 2], [3; 4])", ev)
+        expected = np.outer([1.0, 2.0], [3.0, 4.0])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_outer_of_qubit_basis_states(self, ev):
+        # |0><1| for a single qubit: outer([1,0], [0,1])
+        result = eval_source("outer([1, 0], [0, 1])", ev)
+        np.testing.assert_array_almost_equal(result, np.array([[0.0, 1.0], [0.0, 0.0]]))
+
+    def test_outer_non_vector_raises_type_error(self, ev):
+        with pytest.raises(TypeError):
+            eval_source("outer([1, 2; 3, 4], [1, 2])", ev)
+
+    def test_outer_wrong_arg_count_raises_type_error(self, ev):
+        with pytest.raises(TypeError):
+            eval_source("outer([1, 2])", ev)
+
+
+# ---------------------------------------------------------------------------
+# Built-in: tensor / kron (tensor product)
+# ---------------------------------------------------------------------------
+
+class TestBuiltinTensor:
+    def test_tensor_2x2_identity_with_itself(self, ev):
+        result = eval_source("tensor([1, 0; 0, 1], [1, 0; 0, 1])", ev)
+        np.testing.assert_array_almost_equal(result, np.eye(4))
+
+    def test_tensor_shape(self, ev):
+        result = eval_source("tensor([1, 2], [1, 0; 0, 1])", ev)
+        assert result.shape == (2, 4)
+
+    def test_tensor_matches_numpy_kron(self, ev, st):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        B = np.array([[0.0, 1.0], [1.0, 0.0]])
+        st.set("A", A)
+        st.set("B", B)
+        result = eval_source("tensor(A, B)", ev)
+        np.testing.assert_array_almost_equal(result, np.kron(A, B))
+
+    def test_tensor_of_two_qubits(self, ev):
+        # |0> tensor |1> = [0, 1, 0, 0]
+        result = eval_source("tensor([1; 0], [0; 1])", ev)
+        np.testing.assert_array_almost_equal(result, np.array([[0.0], [1.0], [0.0], [0.0]]))
+
+    def test_tensor_too_few_args_raises_type_error(self, ev, st):
+        st.set("A", np.eye(2))
+        with pytest.raises(TypeError):
+            eval_source("tensor(A)", ev)
+
+    def test_kron_is_alias_for_tensor(self, ev, st):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        B = np.array([[0.0, 1.0], [1.0, 0.0]])
+        st.set("A", A)
+        st.set("B", B)
+        tensor_result = eval_source("tensor(A, B)", ev)
+        kron_result = eval_source("kron(A, B)", ev)
+        np.testing.assert_array_almost_equal(tensor_result, kron_result)
+
+    def test_kron_matches_numpy_kron(self, ev, st):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        B = np.array([[0.0, 1.0], [1.0, 0.0]])
+        st.set("A", A)
+        st.set("B", B)
+        result = eval_source("kron(A, B)", ev)
+        np.testing.assert_array_almost_equal(result, np.kron(A, B))
+
+
+# ---------------------------------------------------------------------------
+# Built-in: commutator
+# ---------------------------------------------------------------------------
+
+class TestBuiltinCommutator:
+    def test_commutator_of_identity_is_zero(self, ev):
+        result = eval_source("commutator([1, 0; 0, 1], [1, 2; 3, 4])", ev)
+        np.testing.assert_array_almost_equal(result, np.zeros((2, 2)))
+
+    def test_commutator_matches_manual_computation(self, ev, st):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        B = np.array([[0.0, 1.0], [1.0, 0.0]])
+        st.set("A", A)
+        st.set("B", B)
+        result = eval_source("commutator(A, B)", ev)
+        np.testing.assert_array_almost_equal(result, A @ B - B @ A)
+
+    def test_commutator_pauli_x_pauli_y(self, ev):
+        # [X, Y] = 2iZ; using real Pauli-like matrices without the
+        # imaginary unit still exercises the anti-commuting structure.
+        result = eval_source(
+            "commutator([0, 1; 1, 0], [0, -1; 1, 0])", ev
+        )
+        X = np.array([[0.0, 1.0], [1.0, 0.0]])
+        Y = np.array([[0.0, -1.0], [1.0, 0.0]])
+        np.testing.assert_array_almost_equal(result, X @ Y - Y @ X)
+
+    def test_commutator_antisymmetric(self, ev, st):
+        A = np.array([[1.0, 2.0], [3.0, 4.0]])
+        B = np.array([[0.0, 1.0], [1.0, 0.0]])
+        st.set("A", A)
+        st.set("B", B)
+        ab = eval_source("commutator(A, B)", ev)
+        ba = eval_source("commutator(B, A)", ev)
+        np.testing.assert_array_almost_equal(ab, -ba)
+
+    def test_commutator_non_square_raises_value_error(self, ev):
+        with pytest.raises(ValueError):
+            eval_source("commutator([1, 2, 3; 4, 5, 6], [1, 0; 0, 1])", ev)
+
+    def test_commutator_mismatched_shapes_raises_value_error(self, ev):
+        with pytest.raises(ValueError):
+            eval_source("commutator([1, 0; 0, 1], [1, 0, 0; 0, 1, 0; 0, 0, 1])", ev)
+
+    def test_commutator_wrong_arg_count_raises_type_error(self, ev, st):
+        st.set("A", np.eye(2))
+        with pytest.raises(TypeError):
+            eval_source("commutator(A)", ev)
+
+
+# ---------------------------------------------------------------------------
 # Unknown function name
 # ---------------------------------------------------------------------------
 

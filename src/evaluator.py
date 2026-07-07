@@ -280,23 +280,33 @@ class Evaluator:
 
         Supported functions:
 
-        +-----------+--------------------+------------------------------------+
-        | Name      | Signature          | Description                        |
-        +===========+====================+====================================+
-        | transpose | ``transpose(A)``   | Matrix transpose                   |
-        +-----------+--------------------+------------------------------------+
-        | det       | ``det(A)``         | Determinant (square matrices only) |
-        +-----------+--------------------+------------------------------------+
-        | inv       | ``inv(A)``         | Matrix inverse (square only)       |
-        +-----------+--------------------+------------------------------------+
-        | trace     | ``trace(A)``       | Sum of diagonal elements           |
-        +-----------+--------------------+------------------------------------+
-        | eye       | ``eye(n)``         | n×n identity matrix                |
-        +-----------+--------------------+------------------------------------+
-        | zeros     | ``zeros(r, c)``    | r×c zero matrix                    |
-        +-----------+--------------------+------------------------------------+
-        | ones      | ``ones(r, c)``     | r×c ones matrix                    |
-        +-----------+--------------------+------------------------------------+
+        +------------+------------------------+------------------------------------+
+        | Name       | Signature              | Description                        |
+        +============+========================+====================================+
+        | transpose  | ``transpose(A)``       | Matrix transpose                   |
+        +------------+------------------------+------------------------------------+
+        | det        | ``det(A)``             | Determinant (square matrices only) |
+        +------------+------------------------+------------------------------------+
+        | inv        | ``inv(A)``             | Matrix inverse (square only)       |
+        +------------+------------------------+------------------------------------+
+        | trace      | ``trace(A)``           | Sum of diagonal elements           |
+        +------------+------------------------+------------------------------------+
+        | eye        | ``eye(n)``             | n×n identity matrix                |
+        +------------+------------------------+------------------------------------+
+        | zeros      | ``zeros(r, c)``        | r×c zero matrix                    |
+        +------------+------------------------+------------------------------------+
+        | ones       | ``ones(r, c)``         | r×c ones matrix                    |
+        +------------+------------------------+------------------------------------+
+        | dagger     | ``dagger(A)``          | Conjugate transpose (A^dagger)     |
+        +------------+------------------------+------------------------------------+
+        | outer      | ``outer(u, v)``        | Outer product of two vectors       |
+        +------------+------------------------+------------------------------------+
+        | tensor     | ``tensor(A, B)``       | Tensor / Kronecker product         |
+        +------------+------------------------+------------------------------------+
+        | kron       | ``kron(A, B)``         | Alias for ``tensor(A, B)``         |
+        +------------+------------------------+------------------------------------+
+        | commutator | ``commutator(A, B)``   | ``A*B - B*A`` (square, same shape) |
+        +------------+------------------------+------------------------------------+
 
         Args:
             name: The function name as it appears in the source.
@@ -308,9 +318,11 @@ class Evaluator:
 
         Raises:
             NameError: If *name* is not a recognised built-in.
-            TypeError: If the wrong number of arguments is supplied.
+            TypeError: If the wrong number of arguments is supplied, or if
+                ``outer()`` is given a non-vector argument.
             ValueError: If a matrix argument has an invalid shape for the
-                requested operation (e.g. non-square for ``det`` or ``inv``).
+                requested operation (e.g. non-square for ``det`` or ``inv``,
+                or mismatched/non-square shapes for ``commutator``).
         """
         evaluated = [self.eval(arg) for arg in args]
 
@@ -367,6 +379,35 @@ class Evaluator:
                     f"ones() requires positive dimensions; got ({r}, {c})."
                 )
             return np.ones((r, c))
+
+        if name == "dagger":
+            self._check_arg_count(name, evaluated, expected=1)
+            return np.conjugate(evaluated[0]).T
+
+        if name == "outer":
+            self._check_arg_count(name, evaluated, expected=2)
+            u = self._as_vector(evaluated[0], "outer", "u")
+            v = self._as_vector(evaluated[1], "outer", "v")
+            return np.outer(u, v)
+
+        # tensor(A, B) and its alias kron(A, B) both compute the Kronecker
+        # (tensor) product; kron is accepted silently for users coming from
+        # NumPy/MATLAB habits.
+        if name in ("tensor", "kron"):
+            self._check_arg_count(name, evaluated, expected=2)
+            return np.kron(evaluated[0], evaluated[1])
+
+        if name == "commutator":
+            self._check_arg_count(name, evaluated, expected=2)
+            a, b = evaluated[0], evaluated[1]
+            self._require_square(a, "commutator")
+            self._require_square(b, "commutator")
+            if a.shape != b.shape:
+                raise ValueError(
+                    f"commutator() requires matrices of the same shape; "
+                    f"got {a.shape[0]}×{a.shape[1]} and {b.shape[0]}×{b.shape[1]}."
+                )
+            return a @ b - b @ a
 
         raise NameError(f"Unknown function: '{name}'")
 
@@ -478,6 +519,29 @@ class Evaluator:
                 f"{func_name}() takes {expected} argument(s), "
                 f"but {len(evaluated)} were given."
             )
+
+    @staticmethod
+    def _as_vector(array: np.ndarray, func_name: str, param_name: str) -> np.ndarray:
+        """Flatten a row or column vector to 1-D, rejecting other shapes.
+
+        Args:
+            array: The evaluated argument; must be a row (1×n) or column
+                (n×1) matrix.
+            func_name: Name of the calling function (for error messages).
+            param_name: Name of the parameter (for error messages).
+
+        Returns:
+            A 1-D NumPy array with ``n`` elements.
+
+        Raises:
+            TypeError: If *array* is not a row or column vector.
+        """
+        if array.ndim != 2 or (array.shape[0] != 1 and array.shape[1] != 1):
+            raise TypeError(
+                f"{func_name}(): argument '{param_name}' must be a row or "
+                f"column vector, got a {array.shape[0]}×{array.shape[1]} matrix."
+            )
+        return array.reshape(-1)
 
     @staticmethod
     def _scalar_int(array: np.ndarray, func_name: str, param_name: str) -> int:

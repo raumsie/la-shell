@@ -350,7 +350,7 @@ def main() -> None:
     evaluator = Evaluator(symbol_table)
     history: list[str] = []
 
-    print(white("LA Shell v1.0 — Linear Algebra Interpreter"))
+    print(white("LA Shell v1.1 — Linear Algebra Interpreter"))
     print(white("Type '.help' for commands. Type '.exit' to quit.\n"))
 
     while True:
