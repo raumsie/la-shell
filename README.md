@@ -1,8 +1,7 @@
 # LA Shell — Linear Algebra Interpreter
 
-LA Shell is an interactive, MATLAB-style REPL for evaluating matrix expressions in real time. You type a statement at a prompt, and the shell immediately tokenizes, parses, and evaluates it using a **hand-written recursive descent parser** backed by NumPy — giving you production-grade matrix performance while keeping every stage of the interpreter fully transparent and educational. It is designed for anyone who wants a scriptable, terminal-native environment for linear algebra without the overhead of a full numerical computing framework.
+LA Shell is an interactive, MATLAB-style REPL for evaluating matrix expressions in real time. You type a statement at a prompt, and the shell immediately tokenizes, parses, and evaluates it using a **hand-written recursive descent parser** backed by NumPy. The design was inspired by the linear algebra demands of quantum computing.
 
-> **Why this matters**: This interpreter is built entirely from scratch using hand-written recursive descent parsing — no external parser generators (YACC, ANTLR, etc.) are used. Every token, AST node, and evaluation step is fully transparent and designed for educational clarity.
 
 ---
 
