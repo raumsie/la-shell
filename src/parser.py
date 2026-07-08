@@ -54,7 +54,7 @@ Usage
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Union
+from typing import Union, cast
 
 from src.lexer import Token, TokenType
 
@@ -68,14 +68,17 @@ class NumberNode:
     """A numeric literal node.
 
     Attributes:
-        value: The numeric value, stored as a Python ``float``.
+        value: The numeric value. A Python ``float`` for an ordinary numeric
+            literal, or a Python ``complex`` (zero real part) for an
+            imaginary literal written with a trailing ``i``.
 
     Example::
 
         3.14  →  NumberNode(value=3.14)
         42    →  NumberNode(value=42.0)
+        3i    →  NumberNode(value=3j)
     """
-    value: float
+    value: float | complex
 
 
 @dataclass
@@ -445,7 +448,12 @@ class Parser:
         # ---- Numeric literal ----
         if token.type == TokenType.NUMBER:
             self._consume()
-            return NumberNode(value=float(token.value))  # Lexer already gives float
+            return NumberNode(value=cast(float, token.value))  # Lexer already gives float
+
+        # ---- Imaginary literal (e.g. 3i, 2.5i) ----
+        if token.type == TokenType.IMAGINARY:
+            self._consume()
+            return NumberNode(value=cast(complex, token.value))  # Lexer already gives complex
 
         # ---- Built-in function call ----
         # Must be checked before IDENTIFIER because function names are emitted

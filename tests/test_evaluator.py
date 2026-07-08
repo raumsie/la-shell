@@ -171,6 +171,48 @@ class TestEvalMatrixNode:
 
 
 # ---------------------------------------------------------------------------
+# Complex number literals
+# ---------------------------------------------------------------------------
+
+class TestComplexLiterals:
+    def test_pure_imaginary_literal(self, ev):
+        result = eval_source("3i", ev)
+        assert result.item() == complex(0, 3)
+
+    def test_compound_complex_addition(self, ev):
+        result = eval_source("3+4i", ev)
+        assert result.item() == complex(3, 4)
+
+    def test_compound_complex_subtraction(self, ev):
+        result = eval_source("3-4i", ev)
+        assert result.item() == complex(3, -4)
+
+    def test_imaginary_literal_dtype_is_complex128(self, ev):
+        result = eval_source("3i", ev)
+        assert result.dtype == np.complex128
+
+    def test_real_only_matrix_stays_float64(self, ev):
+        # Regression guard: dropping the hardcoded dtype=float must not
+        # promote ordinary real literals to complex.
+        result = eval_source("[1, 2; 3, 4]", ev)
+        assert result.dtype == np.float64
+
+    def test_mixed_complex_matrix_literal_values(self, ev):
+        result = eval_source("[1+2i, 3-1i; 0+1i, 2]", ev)
+        expected = np.array([[1 + 2j, 3 - 1j], [0 + 1j, 2 + 0j]])
+        np.testing.assert_array_almost_equal(result, expected)
+
+    def test_mixed_complex_matrix_literal_dtype(self, ev):
+        result = eval_source("[1+2i, 3-1i; 0+1i, 2]", ev)
+        assert result.dtype == np.complex128
+
+    def test_bare_i_remains_usable_as_variable(self, ev):
+        result = eval_source("i = 5", ev)
+        assert result.item() == pytest.approx(5.0)
+        assert result.dtype == np.float64
+
+
+# ---------------------------------------------------------------------------
 # BinOpNode — PLUS
 # ---------------------------------------------------------------------------
 
@@ -527,6 +569,10 @@ class TestBuiltinEye:
         with pytest.raises(ValueError):
             eval_source("eye(0)", ev)
 
+    def test_eye_complex_arg_raises_type_error(self, ev):
+        with pytest.raises(TypeError):
+            eval_source("eye(2+3i)", ev)
+
     def test_eye_negative_raises_value_error(self, ev):
         with pytest.raises(ValueError):
             eval_source("eye(-1)", ev)
@@ -564,6 +610,10 @@ class TestBuiltinZeros:
     def test_zeros_zero_cols_raises_value_error(self, ev):
         with pytest.raises(ValueError):
             eval_source("zeros(2, 0)", ev)
+
+    def test_zeros_complex_arg_raises_type_error(self, ev):
+        with pytest.raises(TypeError):
+            eval_source("zeros(1i, 2)", ev)
 
     def test_zeros_one_arg_raises_type_error(self, ev):
         with pytest.raises(TypeError):
@@ -636,6 +686,13 @@ class TestBuiltinDagger:
         st.set("A", np.eye(2))
         with pytest.raises(TypeError):
             eval_source("dagger(A, A)", ev)
+
+    def test_dagger_via_complex_literal_syntax(self, ev):
+        # End-to-end: complex literals written directly in LA Shell source,
+        # not injected via st.set(), proving the conjugation is genuine.
+        result = eval_source("dagger([1+2i, 3-1i; 0+1i, 2])", ev)
+        A = np.array([[1 + 2j, 3 - 1j], [0 + 1j, 2 + 0j]])
+        np.testing.assert_array_almost_equal(result, A.conj().T)
 
 
 # ---------------------------------------------------------------------------

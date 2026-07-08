@@ -1,13 +1,13 @@
-# LA Shell — Linear Algebra Interpreter
+# LA Shell - Linear Algebra Interpreter
 
-LA Shell is an interactive, MATLAB-style REPL for evaluating matrix expressions in real time. You type a statement at a prompt, and the shell immediately tokenizes, parses, and evaluates it using a **hand-written recursive descent parser** backed by NumPy. The design was inspired by the linear algebra demands of quantum computing.
+LA Shell is a MATLAB-style REPL for evaluating matrix expressions. The user types a statement at a prompt, and the shell immediately tokenizes, parses, and evaluates it using a **hand-written recursive descent parser**. The design was inspired by the linear algebra demands of quantum computing.
 
 
 ---
 
 ## Quick Start
 
-Clone the repository and run the REPL in three commands:
+Clone the repository and run the REPL:
 
 ```bash
 git clone https://github.com/your-username/la-shell.git
@@ -52,7 +52,7 @@ python -m src.repl
 You will see the welcome banner:
 
 ```
-LA Shell v1.1 — Linear Algebra Interpreter
+LA Shell v1.2 - Linear Algebra Interpreter
 Type '.help' for commands. Type '.exit' to quit.
 
 la>
@@ -96,6 +96,25 @@ la> M = [1, 2, 3;
 ...>     7, 8, 9]
 ```
 
+### Complex Numbers
+
+A numeric literal immediately followed by `i` is an imaginary literal, e.g. `3i`, `2.5i`, `.5i`. There is no combined real+imaginary literal syntax. Write compound complex values with ordinary addition/subtraction instead:
+
+```
+3 + 4i
+2 - 5i
+```
+
+This works because `4i` is just another literal, and `+`/`-` already promote to a complex result whenever either operand is complex. This means the whole matrix is promoted to complex if any cell is complex:
+
+```
+[1+2i, 3-1i; 0+1i, 2]
+```
+
+**`i` is never a reserved word.** The imaginary suffix only applies immediately after a digit or a `.`-led number — a bare `i` with nothing in front of it always lexes as an ordinary identifier, so `i` remains free to use as a variable name (`i = 5` works exactly like any other assignment). This is a deliberate departure from MATLAB, where reassigning `i` silently breaks its meaning as `sqrt(-1)` elsewhere. The consequence is that to write the imaginary unit by itself you type `1i`, not `i`.
+
+Output is always printed using NumPy's native `j` notation (e.g. `3+4j`), even though input uses `i` — there is currently no custom formatter to make output notation match input notation.
+
 ### Assignment
 
 Bind the result of any expression to a named variable using `=`. Variable names must start with a letter or underscore and may contain letters, digits, and underscores.
@@ -123,20 +142,20 @@ A * (B + C)      # A * (B + C)
 
 ### Built-in Functions
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `transpose` | `transpose(A)` | Returns the transpose of matrix `A` |
-| `det` | `det(A)` | Returns the determinant of square matrix `A` as a scalar |
-| `inv` | `inv(A)` | Returns the inverse of square matrix `A`; raises an error if singular |
-| `trace` | `trace(A)` | Returns the trace (sum of diagonal elements) of `A` as a scalar |
-| `eye` | `eye(n)` | Returns the n×n identity matrix |
-| `zeros` | `zeros(r, c)` | Returns an r×c matrix of zeros |
-| `ones` | `ones(r, c)` | Returns an r×c matrix of ones |
-| `dagger` | `dagger(A)` | Conjugate transpose of `A` (Hermitian adjoint, `A†`) |
-| `outer` | `outer(u, v)` | Outer product of two vectors `u` and `v` |
-| `tensor` | `tensor(A, B)` | Tensor (Kronecker) product of `A` and `B` |
-| `kron` | `kron(A, B)` | Alias for `tensor(A, B)` |
-| `commutator` | `commutator(A, B)` | `A*B - B*A` for square matrices of the same size |
+| Function | Signature | Description                                                            |
+|----------|-----------|------------------------------------------------------------------------|
+| `transpose` | `transpose(A)` | Returns the transpose of matrix `A`                                    |
+| `det` | `det(A)` | Returns the determinant of square matrix `A` as a scalar               |
+| `inv` | `inv(A)` | Returns the inverse of square matrix `A` (raises an error if singular) |
+| `trace` | `trace(A)` | Returns the trace (sum of diagonal elements) of `A` as a scalar        |
+| `eye` | `eye(n)` | Returns the n×n identity matrix                                        |
+| `zeros` | `zeros(r, c)` | Returns an r×c matrix of zeros                                         |
+| `ones` | `ones(r, c)` | Returns an r×c matrix of ones                                          |
+| `dagger` | `dagger(A)` | Conjugate transpose of `A` (Hermitian adjoint, `A†`)                   |
+| `outer` | `outer(u, v)` | Outer product of two vectors `u` and `v`                               |
+| `tensor` | `tensor(A, B)` | Tensor (Kronecker) product of `A` and `B`                              |
+| `kron` | `kron(A, B)` | Alias for `tensor(A, B)`                                               |
+| `commutator` | `commutator(A, B)` | `A*B - B*A` for square matrices of the same size                       |
 
 Function arguments are full expressions, so the following are all valid:
 
@@ -148,18 +167,6 @@ transpose(inv(A))
 tensor(A, B)
 commutator(A, B)
 ```
-
-### Quantum Computing Applications
-
-LA Shell's design was inspired by the linear algebra demands of quantum computing, and several built-ins map directly onto common QC operations:
-
-- **`dagger`** — Computes the Hermitian adjoint (conjugate transpose) of an operator or state. Used constantly in QC to go from a ket `|ψ⟩` to its bra `⟨ψ|`, and to check whether an operator is unitary (`U† * U == I`) or Hermitian (`A† == A`, as required for observables).
-- **`outer`** — Builds rank-1 operators from state vectors, e.g. `outer(v, v)` forms the density matrix / projector `|v⟩⟨v|` for a pure state, and `outer([1,0], [0,1])` forms the raising operator `|0⟩⟨1|`.
-- **`tensor`** / **`kron`** — Combines the state spaces of independent qubits/subsystems via the tensor product, e.g. `tensor([1;0], [0;1])` produces the two-qubit basis state `|01⟩`. `kron` is provided as a drop-in alias since it's the name NumPy and MATLAB users reach for out of habit — it silently performs the same tensor product.
-- **`commutator`** — Computes `[A, B] = AB - BA`, which determines whether two observables can be simultaneously measured (they commute) and appears throughout the Heisenberg uncertainty relations and time-evolution equations.
-
-> **Note:** LA Shell currently only supports real-valued matrix literals (there is no complex-number syntax yet), so `dagger` behaves identically to `transpose` until complex literals are added. The underlying implementation already uses `np.conjugate`, so it will produce correct results the moment complex values are supported.
-
 ---
 
 ## Shell Commands
@@ -180,7 +187,7 @@ Commands are prefixed with a dot (`.`) and are processed before any parsing occu
 ## Example Session
 
 ```
-LA Shell v1.0 — Linear Algebra Interpreter
+LA Shell v1.2 — Linear Algebra Interpreter
 Type '.help' for commands. Type '.exit' to quit.
 
 la> A = [1, 2; 3, 4]

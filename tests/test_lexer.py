@@ -30,18 +30,18 @@ class TestTokenTypeMembers:
     """All 15 TokenType members must exist."""
 
     EXPECTED_MEMBERS = [
-        "NUMBER", "IDENTIFIER", "LBRACKET", "RBRACKET", "SEMICOLON",
-        "COMMA", "EQUALS", "PLUS", "MINUS", "STAR", "LPAREN", "RPAREN",
-        "FUNCTION", "DOT", "EOF",
+        "NUMBER", "IMAGINARY", "IDENTIFIER", "LBRACKET", "RBRACKET",
+        "SEMICOLON", "COMMA", "EQUALS", "PLUS", "MINUS", "STAR", "LPAREN",
+        "RPAREN", "FUNCTION", "DOT", "EOF",
     ]
 
-    def test_all_15_members_exist(self):
+    def test_all_16_members_exist(self):
         names = [m.name for m in TokenType]
         for name in self.EXPECTED_MEMBERS:
             assert name in names, f"Missing TokenType member: {name}"
 
-    def test_exactly_15_members(self):
-        assert len(TokenType) == 15
+    def test_exactly_16_members(self):
+        assert len(TokenType) == 16
 
 
 # ---------------------------------------------------------------------------
@@ -338,6 +338,60 @@ class TestTokenPositions:
     def test_line_starts_at_one(self):
         toks = tokenize("A")
         assert toks[0].line == 1
+
+
+# ---------------------------------------------------------------------------
+# IMAGINARY tokens
+# ---------------------------------------------------------------------------
+
+class TestImaginaryTokens:
+    def test_integer_imaginary_produces_imaginary_token(self):
+        toks = tokenize("3i")
+        assert toks[0].type == TokenType.IMAGINARY
+
+    def test_integer_imaginary_value_is_complex(self):
+        toks = tokenize("3i")
+        assert toks[0].value == complex(0, 3)
+
+    def test_float_imaginary_value(self):
+        toks = tokenize("2.5i")
+        assert toks[0].type == TokenType.IMAGINARY
+        assert toks[0].value == complex(0, 2.5)
+
+    def test_leading_dot_imaginary_value(self):
+        toks = tokenize(".5i")
+        assert toks[0].type == TokenType.IMAGINARY
+        assert toks[0].value == complex(0, 0.5)
+
+    def test_imaginary_token_consumes_single_token(self):
+        # "3i" must be one IMAGINARY token, not NUMBER followed by IDENTIFIER.
+        toks = tokenize("3i")
+        assert len(toks) == 2  # IMAGINARY + EOF
+
+    def test_bare_i_is_identifier_not_imaginary(self):
+        # No leading digit means 'i' stays an ordinary identifier, so it
+        # remains usable as a variable name.
+        toks = tokenize("i")
+        assert toks[0].type == TokenType.IDENTIFIER
+        assert toks[0].value == "i"
+
+    def test_identifier_starting_with_i_unaffected(self):
+        toks = tokenize("i_var")
+        assert toks[0].type == TokenType.IDENTIFIER
+        assert toks[0].value == "i_var"
+
+    def test_inv_still_lexes_as_function(self):
+        # Regression guard: the imaginary-literal regex must not interfere
+        # with words that happen to start with 'i'.
+        assert tokenize("inv")[0].type == TokenType.FUNCTION
+
+    def test_compound_expression_token_types(self):
+        result = types("3+4i")
+        assert result == ["NUMBER", "PLUS", "IMAGINARY", "EOF"]
+
+    def test_compound_expression_with_minus(self):
+        result = types("3-4i")
+        assert result == ["NUMBER", "MINUS", "IMAGINARY", "EOF"]
 
 
 # ---------------------------------------------------------------------------

@@ -122,12 +122,15 @@ class Evaluator:
         """Return a numeric literal as a 1×1 array.
 
         Args:
-            node: A ``NumberNode`` carrying a ``float`` value.
+            node: A ``NumberNode`` carrying a ``float`` value, or a
+                ``complex`` value for an imaginary literal (e.g. ``3i``).
 
         Returns:
-            ``np.array([[value]])`` with dtype ``float64``.
+            ``np.array([[value]])``. NumPy infers the dtype from the
+            Python scalar type: ``float64`` for a ``float`` value,
+            ``complex128`` for a ``complex`` value.
         """
-        return np.array([[node.value]], dtype=float)
+        return np.array([[node.value]])
 
     def _eval_var(self, node: VarNode) -> np.ndarray:
         """Look up a variable in the symbol table.
@@ -150,24 +153,28 @@ class Evaluator:
 
         Each cell expression inside the matrix literal is evaluated
         recursively.  A cell that evaluates to a 1×1 array is collapsed
-        to a plain Python float via ``.item()`` so that ``np.array`` can
-        construct a homogeneous 2-D matrix.
+        to a plain Python scalar (``float`` or ``complex``) via ``.item()``
+        so that ``np.array`` can construct a homogeneous 2-D matrix.
 
         Args:
             node: A ``MatrixNode`` whose ``rows`` attribute is a list of
                 lists of AST nodes.
 
         Returns:
-            A 2-D ``float64`` array with shape ``(num_rows, num_cols)``.
+            A 2-D array with shape ``(num_rows, num_cols)``. NumPy infers
+            the dtype from the cell values: ``float64`` unless at least one
+            cell evaluated to a complex value (e.g. via an imaginary
+            literal), in which case the whole matrix is promoted to
+            ``complex128``.
 
         Raises:
             TypeError: If rows have inconsistent column counts.
         """
-        evaluated_rows: list[list[float]] = []
+        evaluated_rows: list[list[float | complex]] = []
         num_cols: int | None = None
 
         for row_idx, row in enumerate(node.rows):
-            row_vals: list[float] = []
+            row_vals: list[float | complex] = []
             for cell in row:
                 cell_result = self.eval(cell)
                 # Each cell must reduce to a single scalar.
@@ -190,7 +197,7 @@ class Evaluator:
 
             evaluated_rows.append(row_vals)
 
-        return np.array(evaluated_rows, dtype=float)
+        return np.array(evaluated_rows)
 
     def _eval_binop(self, node: BinOpNode) -> np.ndarray:
         """Evaluate a binary operation node.
@@ -556,11 +563,18 @@ class Evaluator:
             The integer value.
 
         Raises:
-            TypeError: If *array* is not a scalar (1×1) value.
+            TypeError: If *array* is not a scalar (1×1) value, or if its
+                value is complex.
         """
         if array.size != 1:
             raise TypeError(
                 f"{func_name}(): argument '{param_name}' must be a scalar, "
                 f"got a {array.shape[0]}×{array.shape[1]} matrix."
             )
-        return int(array.item())
+        value = array.item()
+        if isinstance(value, complex):
+            raise TypeError(
+                f"{func_name}(): argument '{param_name}' must be a real "
+                "scalar, got a complex value."
+            )
+        return int(value)

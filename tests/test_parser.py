@@ -53,6 +53,37 @@ class TestNumberNode:
 
 
 # ---------------------------------------------------------------------------
+# NumberNode — imaginary literals
+# ---------------------------------------------------------------------------
+
+class TestImaginaryLiteral:
+    def test_imaginary_literal_produces_number_node(self):
+        node = parse("3i")
+        assert isinstance(node, NumberNode)
+
+    def test_imaginary_literal_value_is_complex(self):
+        node = parse("3i")
+        assert node.value == complex(0, 3)
+        assert isinstance(node.value, complex)
+
+    def test_float_imaginary_literal_value(self):
+        node = parse("2.5i")
+        assert node.value == complex(0, 2.5)
+
+    def test_compound_complex_expression_is_binop(self):
+        node = parse("3+4i")
+        assert isinstance(node, BinOpNode)
+        assert node.op == "PLUS"
+        assert isinstance(node.left, NumberNode) and node.left.value == 3.0
+        assert isinstance(node.right, NumberNode) and node.right.value == complex(0, 4)
+
+    def test_bare_i_parses_as_var_node(self):
+        node = parse("i")
+        assert isinstance(node, VarNode)
+        assert node.name == "i"
+
+
+# ---------------------------------------------------------------------------
 # VarNode
 # ---------------------------------------------------------------------------
 

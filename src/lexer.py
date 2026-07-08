@@ -6,6 +6,12 @@ always terminates with an EOF token.
 
 Supported token types:
     NUMBER      – integer or floating-point literal (stored as Python float)
+    IMAGINARY   – a NUMBER immediately followed by 'i' (e.g. 3i, 2.5i, .5i),
+                  stored as a Python complex with zero real part. A bare 'i'
+                  with no leading digit is NOT imaginary — it lexes as an
+                  ordinary IDENTIFIER, so 'i' remains usable as a variable
+                  name. Compound complex values are built with ordinary
+                  arithmetic, e.g. '3 + 4i'.
     IDENTIFIER  – letter/underscore-started name that is NOT a function keyword
     LBRACKET    – '['
     RBRACKET    – ']'
@@ -50,6 +56,7 @@ class TokenType(Enum):
     """
 
     NUMBER = auto()      # 3.14, 42, 0.5, .75
+    IMAGINARY = auto()   # 3i, 2.5i, .5i (a NUMBER with a trailing 'i')
     IDENTIFIER = auto()  # A, B, my_var, x1
     LBRACKET = auto()    # [
     RBRACKET = auto()    # ]
@@ -95,7 +102,8 @@ FUNCTION_KEYWORDS: frozenset[str] = frozenset({
 # both identifiers and function keywords – the Lexer resolves the distinction.
 
 _TOKEN_PATTERN = re.compile(
-    r'(?P<NUMBER>\d+\.\d*|\.\d+|\d+)'       # float: 1.5  .5  1.  or int: 42
+    r'(?P<IMAGINARY>(?:\d+\.\d*|\.\d+|\d+)i)'  # imaginary: 3i  2.5i  .5i
+    r'|(?P<NUMBER>\d+\.\d*|\.\d+|\d+)'      # float: 1.5  .5  1.  or int: 42
     r'|(?P<WORD>[a-zA-Z_][a-zA-Z0-9_]*)'    # identifier / keyword
     r'|(?P<LBRACKET>\[)'
     r'|(?P<RBRACKET>\])'
@@ -117,7 +125,10 @@ _TOKEN_PATTERN = re.compile(
 # Mapping from named-group identifiers that translate 1-to-1 to TokenType names
 _DIRECT_TOKEN_KINDS: frozenset[str] = frozenset(
     t.name for t in TokenType
-    if t not in (TokenType.NUMBER, TokenType.IDENTIFIER, TokenType.FUNCTION, TokenType.EOF)
+    if t not in (
+        TokenType.NUMBER, TokenType.IMAGINARY, TokenType.IDENTIFIER,
+        TokenType.FUNCTION, TokenType.EOF,
+    )
 )
 
 
@@ -132,14 +143,15 @@ class Token:
     Attributes:
         type:     The syntactic category of this token.
         value:    The matched text for most token types; a Python ``float``
-                  for NUMBER tokens.
+                  for NUMBER tokens; a Python ``complex`` (zero real part)
+                  for IMAGINARY tokens.
         position: Zero-based character offset of the first character of this
                   token within the source string.
         line:     One-based line number where the token begins.
     """
 
     type: TokenType
-    value: str | float
+    value: str | float | complex
     position: int
     line: int
 
@@ -198,6 +210,10 @@ class Lexer:
         >>> [(t.type.name, t.value) for t in tokens]
         [('FUNCTION', 'transpose'), ('LPAREN', '('), ('IDENTIFIER', 'A'),
          ('RPAREN', ')'), ('EOF', '')]
+
+        >>> tokens = Lexer('3 + 4i').tokenize()
+        >>> [(t.type.name, t.value) for t in tokens]
+        [('NUMBER', 3.0), ('PLUS', '+'), ('IMAGINARY', 4j), ('EOF', '')]
     """
 
     def __init__(self, source: str) -> None:
@@ -244,6 +260,14 @@ class Lexer:
             # ---- numeric literal ----
             if kind == 'NUMBER':
                 tokens.append(Token(TokenType.NUMBER, float(raw), pos, line))
+                continue
+
+            # ---- imaginary literal (trailing 'i') ----
+            if kind == 'IMAGINARY':
+                coefficient = float(raw[:-1])  # strip the trailing 'i'
+                tokens.append(
+                    Token(TokenType.IMAGINARY, complex(0, coefficient), pos, line)
+                )
                 continue
 
             # ---- identifier or function keyword ----
